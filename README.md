@@ -64,3 +64,102 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+# FinanceTracker_WP
+
+Finance Tracker dengan AI Finance Advisor — project mata kuliah Web Programming (COMP6821001).
+
+Aplikasi pencatat keuangan yang dilengkapi AI advisor. AI memberi observasi & saran lunak soal pola pengeluaran, serta bisa ditanya soal dampak suatu rencana pembelian terhadap keuangan user.
+
+## Tech Stack
+
+- **Framework:** Laravel 11 (PHP)
+- **Database:** MySQL
+- **Frontend:** Blade + Tailwind CSS (bawaan skeleton Laravel), dikompilasi via Vite
+- **AI:** LLM pihak ketiga (dipanggil via API)
+
+## Prasyarat
+
+Sebelum clone/setup, pastikan sudah terinstall di komputer masing-masing:
+
+- **PHP 8.2+** dan **Composer** — disarankan pakai [Laragon](https://laragon.org/) (bundle PHP + MySQL + Composer sekaligus, tinggal install satu aplikasi)
+- **Node.js** dan **npm**
+- **Git**
+
+## Setup Project (untuk anggota tim baru)
+
+Ikuti urutan ini persis — jangan diloncat, karena tiap langkah bergantung ke langkah sebelumnya.
+
+### 1. Siapkan database lokal
+
+Ini **tidak bisa di-skip** — database MySQL harus ada di komputer masing-masing sebelum lanjut, karena tidak ada database yang di-share lewat repo ini.
+
+- Nyalain MySQL (lewat Laragon: klik "Start All" atau pastikan status MySQL aktif)
+- Buka HeidiSQL (Menu Laragon → Database) atau phpMyAdmin
+- Bikin database baru dengan nama persis: `finance_tracker`
+
+### 2. Clone repository
+
+```
+git clone https://github.com/Endru180/FinanceTracker_WP.git
+cd FinanceTracker_WP
+```
+
+### 3. Install dependency PHP
+
+```
+composer install
+```
+
+Kalau muncul error soal security advisory saat pertama kali install, jalankan dulu:
+```
+composer config policy.advisories.block false
+```
+lalu ulangi `composer install`.
+
+### 4. Setup file environment
+
+```
+copy .env.example .env
+php artisan key:generate
+```
+
+Cek isi `.env` — bagian database seharusnya sudah otomatis terisi:
+```
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=finance_tracker
+DB_USERNAME=root
+DB_PASSWORD=
+```
+Kalau setup MySQL lokal kamu beda (misal pakai password), sesuaikan baris ini saja.
+
+### 5. Jalankan migration
+
+```
+php artisan migrate
+```
+
+Kalau berhasil tanpa error, berarti koneksi ke database sudah benar.
+
+### 6. Install & compile dependency frontend
+
+```
+npm install
+npm run build
+```
+
+### 7. Jalankan server
+
+```
+php artisan serve
+```
+
+Buka `http://127.0.0.1:8000` — kalau muncul halaman welcome Laravel dengan tampilan yang sudah ter-styling, setup selesai.
+
+## Troubleshooting Umum
+
+- **`php`/`composer` tidak dikenali di terminal** — belum ditambahkan ke PATH sistem Windows. Cek lewat Laragon: Menu → Tools → Quick add → Path.
+- **Composer error "Permission denied" saat download package** — biasanya disebabkan Windows Defender real-time scan. Tambahkan folder project sebagai exclusion di Windows Security → Virus & threat protection → Manage settings → Exclusions.
+- **`php artisan migrate` error connection refused** — pastikan service MySQL di Laragon sedang aktif (Start All).
