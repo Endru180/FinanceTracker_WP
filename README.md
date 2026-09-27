@@ -1,6 +1,6 @@
 # Finance Tracker Project
-## 5th semester Web Programming project
----
+5th semester Web Programming project
+
 
 ## Members : 
 - Andrew Frederick Iskandar
@@ -8,7 +8,6 @@
 - Bryan Vincent
 - Nataniel Valen Andriko
 
----
 
 ## Pre-requisites : 
 - PHP 8.2+ -> make sure to enable pg_mysql in php.ini
@@ -16,7 +15,6 @@
 - Mysql database
 - Node.JS / npm
 
----
 
 ## Initialization Steps : 
 - clone the repo ('git clone ... ')
@@ -29,10 +27,12 @@
 - run vite ('npm run dev')
 - open another terminal and run artisan serve ('php artisan serve')
 
----
 
 ## Features
 - User Expense Tracker 
 - User Income Tracker
 - AI Finance Advisor using LLM API
 - User Finance Summary Dashboard
+
+## Initial ERD Design
+![alt text](ERD.png)
