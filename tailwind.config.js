@@ -1,18 +1,23 @@
-import defaultTheme from 'tailwindcss/defaultTheme';
-
 /** @type {import('tailwindcss').Config} */
+const color = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+
 export default {
-    content: [
-        './vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php',
-        './storage/framework/views/*.php',
-        './resources/**/*.blade.php',
-        './resources/**/*.js',
-        './resources/**/*.vue',
-    ],
+    content: ["./resources/**/*.blade.php", "./resources/**/*.jsx"],
     theme: {
         extend: {
+            colors: {
+                bg: color("bg"),
+                surface: color("surface"),
+                "surface-raised": color("surface-raised"),
+                border: color("border"),
+                ink: color("ink"),
+                muted: color("muted"),
+                accent: color("accent"),
+                danger: color("danger"),
+            },
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                display: ["Space Grotesk", "sans-serif"],
+                body: ["IBM Plex Sans", "sans-serif"],
             },
         },
     },

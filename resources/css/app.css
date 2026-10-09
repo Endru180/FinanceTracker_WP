@@ -1,3 +1,37 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Colors are stored as "R G B" so Tailwind can add opacity to them. */
+:root,
+[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: 18 18 20;
+    --surface: 26 27 29;
+    --surface-raised: 33 34 37;
+    --border: 43 44 47;
+    --ink: 236 237 238;
+    --muted: 139 142 147;
+    --accent: 201 164 106;
+    --danger: 248 113 113;
+    --faint: 58 60 64;
+}
+
+[data-theme="light"] {
+    color-scheme: light;
+    --bg: 244 244 245;
+    --surface: 255 255 255;
+    --surface-raised: 237 237 239;
+    --border: 220 220 224;
+    --ink: 23 24 26;
+    --muted: 100 103 108;
+    --accent: 131 98 12;
+    --danger: 185 28 28;
+    --faint: 200 202 206;
+}
+
+body {
+    @apply bg-bg text-ink font-body antialiased;
+}
