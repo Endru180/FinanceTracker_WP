@@ -4,7 +4,11 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Colors are stored as "R G B" so Tailwind can add opacity to them. */
+/* Hides Alpine elements until Alpine has started */
+[x-cloak] {
+    display: none !important;
+}
+
 :root,
 [data-theme="dark"] {
     color-scheme: dark;
