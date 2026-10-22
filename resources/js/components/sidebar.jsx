@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
-import { useFinance } from "../context/FinanceContext";
-import ThemeToggle from "./ThemeToggle";
+import { useFinance } from "../context/financecontext";
+import ThemeToggle from "./themetoggle";
 
 const navItems = [
     { label: "Dashboard", icon: "⊞", path: "/" },
