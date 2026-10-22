@@ -2,7 +2,7 @@
 const color = (name) => `rgb(var(--${name}) / <alpha-value>)`;
 
 export default {
-    content: ["./resources/**/*.blade.php", "./resources/**/*.jsx"],
+    content: ["./resources/**/*.blade.php", "./resources/**/*.js"],
     theme: {
         extend: {
             colors: {
