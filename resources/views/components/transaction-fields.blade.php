@@ -4,8 +4,8 @@
         'name' => '',
         'description' => '',
         'amount' => '',
-        'category' => $categories[0],
-        'account_id' => $accounts[0]['id'],
+        'category' => $categories[0] ?? null,
+        'account_id' => $accounts[0]['id'] ?? null,
         'date' => now()->toDateString(),
     ];
     $input = 'w-full rounded-md border border-border bg-bg px-3 py-2.5 text-sm text-ink placeholder:text-muted transition-colors focus:border-accent focus:outline-none';
@@ -32,7 +32,7 @@
         <label for="{{ $prefix }}-category" class="{{ $label }}">Category</label>
         <select id="{{ $prefix }}-category" name="category" class="{{ $input }}">
             @foreach ($categories as $category)
-                <option value="{{ $category }}" @selected($v['category'] === $category)>{{ $category }}</option>
+            <option value="{{ $category }}" @selected($v['category']===$category)>{{ $category }}</option>
             @endforeach
         </select>
     </div>
@@ -41,9 +41,9 @@
         <label for="{{ $prefix }}-account" class="{{ $label }}">Account</label>
         <select id="{{ $prefix }}-account" name="account_id" class="{{ $input }}">
             @foreach ($accounts as $account)
-                <option value="{{ $account['id'] }}" @selected($v['account_id'] === $account['id'])>
-                    {{ $account['name'] }} (@rupiah($account['balance']))
-                </option>
+            <option value="{{ $account['id'] }}" @selected($v['account_id']===$account['id'])>
+                {{ $account['name'] }} (@rupiah($account['balance']))
+            </option>
             @endforeach
         </select>
     </div>

@@ -2,14 +2,14 @@
 
 namespace App\Services;
 
-/**
- * Keeps all demo data in the user's session, so the app works without a database.
- * When the MySQL tables are ready, replace the bodies of these methods with Eloquent queries.
- */
+use App\Models\Account;
+use App\Models\Category;
+use App\Models\Transaction;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Goal;
+
 class FinanceStore
 {
-    private const KEY = 'finance';
-
     public const ACCOUNT_TYPES = ['Cash', 'Bank', 'E-wallet'];
 
     public const DEFAULT_REMINDERS = [
@@ -20,193 +20,95 @@ class FinanceStore
         'custom_percent' => null,
     ];
 
-    private array $state;
-
-    public function __construct()
-    {
-        $this->state = session(self::KEY) ?? $this->seed();
-        $this->save();
-    }
-
-    private function save(): void
-    {
-        session([self::KEY => $this->state]);
-    }
-
-    private function nextId(): int
-    {
-        return $this->state['next_id']++;
-    }
-
-    private function seed(): array
-    {
-        // Sample dates always land in the current month
-        $date = fn (int $daysAgo) => now()
-            ->subDays(min($daysAgo, now()->day - 1))
-            ->toDateString();
-
-        return [
-            'profile' => ['name' => 'Alex', 'email' => '', 'method' => null],
-            'accounts' => [
-                ['id' => 1, 'name' => 'Cash', 'type' => 'Cash', 'starting_balance' => 900000],
-                ['id' => 2, 'name' => 'Bank BCA', 'type' => 'Bank', 'starting_balance' => 3000000],
-                ['id' => 3, 'name' => 'GoPay', 'type' => 'E-wallet', 'starting_balance' => 500000],
-            ],
-            'categories' => ['Food', 'Fashion', 'Entertainment', 'Transport', 'Health', 'Other'],
-            'transactions' => [
-                ['id' => 1, 'name' => 'Groceries', 'description' => 'Weekly shopping at the supermarket', 'category' => 'Food', 'amount' => 120000, 'account_id' => 2, 'date' => $date(1)],
-                ['id' => 2, 'name' => 'Coffee', 'description' => '', 'category' => 'Food', 'amount' => 25000, 'account_id' => 1, 'date' => $date(0)],
-                ['id' => 3, 'name' => 'Movie ticket', 'description' => 'Weekend movie with friends', 'category' => 'Entertainment', 'amount' => 60000, 'account_id' => 3, 'date' => $date(0)],
-                ['id' => 4, 'name' => 'Ojek online', 'description' => '', 'category' => 'Transport', 'amount' => 35000, 'account_id' => 3, 'date' => $date(0)],
-                ['id' => 5, 'name' => 'New sneakers', 'description' => 'Running shoes, on sale', 'category' => 'Fashion', 'amount' => 450000, 'account_id' => 2, 'date' => $date(6)],
-                ['id' => 6, 'name' => 'Lunch at Warteg', 'description' => '', 'category' => 'Food', 'amount' => 30000, 'account_id' => 1, 'date' => $date(0)],
-                ['id' => 7, 'name' => 'Vitamins', 'description' => 'Monthly supply', 'category' => 'Health', 'amount' => 20000, 'account_id' => 1, 'date' => $date(0)],
-            ],
-            'goals' => [],
-            'overall_goal' => 0,
-            'next_id' => 100,
-        ];
-    }
-
     // ---------------------------------------------------------------- profile
 
     public function profile(): array
     {
-        $profile = $this->state['profile'];
+        $user = Auth::user();
 
-        return $profile + ['signed_in' => $profile['method'] !== null];
+        if (! $user) {
+            return ['name' => 'Guest', 'email' => '', 'method' => null, 'signed_in' => false];
+        }
+
+        return [
+            'name' => $user->username,
+            'email' => $user->email,
+            'method' => 'email',
+            'signed_in' => true,
+        ];
     }
 
     public function updateName(string $name): void
     {
         $name = trim($name);
-        if ($name !== '') {
-            $this->state['profile']['name'] = $name;
-            $this->save();
+        if ($name !== '' && Auth::check()) {
+            Auth::user()->update(['username' => $name]);
         }
-    }
-
-    // The sign-in methods are placeholders. Replace them with real authentication later.
-    public function signUp(string $name, string $email): void
-    {
-        $name = trim($name);
-        if ($name !== '') {
-            $this->state['profile']['name'] = $name;
-        }
-        $this->state['profile']['email'] = trim($email);
-        $this->state['profile']['method'] = 'email';
-        $this->save();
-    }
-
-    public function logIn(string $email): void
-    {
-        $this->state['profile']['email'] = trim($email);
-        $this->state['profile']['method'] = 'email';
-        $this->save();
-    }
-
-    public function logInWithGoogle(): void
-    {
-        $this->state['profile']['email'] = 'alex@gmail.com';
-        $this->state['profile']['method'] = 'google';
-        $this->save();
-    }
-
-    public function logOut(): void
-    {
-        $this->state['profile']['email'] = '';
-        $this->state['profile']['method'] = null;
-        $this->save();
     }
 
     // --------------------------------------------------------------- accounts
 
-    private function spentFrom(int $accountId): int
-    {
-        return array_sum(array_column(
-            array_filter($this->state['transactions'], fn ($t) => $t['account_id'] === $accountId),
-            'amount'
-        ));
-    }
-
-    /** Balance = starting balance minus everything spent from that account. */
     public function accounts(): array
     {
-        return array_map(function (array $account) {
-            $account['balance'] = $account['starting_balance'] - $this->spentFrom($account['id']);
-            $account['transaction_count'] = count(array_filter(
-                $this->state['transactions'],
-                fn ($t) => $t['account_id'] === $account['id']
-            ));
-
-            return $account;
-        }, $this->state['accounts']);
+        return Account::where('user_id', Auth::id())
+            ->withCount('transactions')
+            ->get()
+            ->map(fn(Account $a) => [
+                'id' => $a->id,
+                'name' => $a->account_name,
+                'type' => $a->account_type,
+                'starting_balance' => (float) $a->balance,
+                'balance' => $a->currentBalance(),
+                'transaction_count' => $a->transactions_count,
+            ])
+            ->all();
     }
 
-    public function totalBalance(): int
+    public function totalBalance(): float
     {
-        return array_sum(array_column($this->accounts(), 'balance'));
+        return Account::where('user_id', Auth::id())->get()->sum(fn(Account $a) => $a->currentBalance());
     }
 
     public function addAccount(string $name, string $type, int $balance): void
     {
-        $this->state['accounts'][] = [
-            'id' => $this->nextId(),
-            'name' => trim($name),
-            'type' => $type,
-            'starting_balance' => $balance,
-        ];
-        $this->save();
+        Account::create([
+            'account_name' => trim($name),
+            'account_type' => $type,
+            'balance' => $balance,
+            'user_id' => Auth::id(),
+        ]);
     }
 
-    /** The user edits the current balance; the starting balance is adjusted to match. */
     public function updateAccount(int $id, string $name, string $type, int $balance): void
     {
-        $spent = $this->spentFrom($id);
+        $account = Account::where('user_id', Auth::id())->findOrFail($id);
+        $net = $account->currentBalance() - (float) $account->balance;
 
-        $this->state['accounts'] = array_map(
-            fn ($a) => $a['id'] === $id
-                ? [...$a, 'name' => trim($name), 'type' => $type, 'starting_balance' => $balance + $spent]
-                : $a,
-            $this->state['accounts']
-        );
-        $this->save();
+        $account->update([
+            'account_name' => trim($name),
+            'account_type' => $type,
+            'balance' => $balance - $net,
+        ]);
     }
 
-    /** Returns an error message, or null when the account was deleted. */
     public function deleteAccount(int $id): ?string
     {
-        $count = count(array_filter($this->state['transactions'], fn ($t) => $t['account_id'] === $id));
+        $account = Account::where('user_id', Auth::id())->findOrFail($id);
+        $count = $account->transactions()->count();
 
         if ($count > 0) {
             return "This account has {$count} transaction(s). Change or delete them first.";
         }
-        if (count($this->state['accounts']) <= 1) {
+        if (Account::where('user_id', Auth::id())->count() <= 1) {
             return 'You need at least one account.';
         }
 
-        $this->state['accounts'] = array_values(
-            array_filter($this->state['accounts'], fn ($a) => $a['id'] !== $id)
-        );
-        $this->save();
+        $account->delete();
 
         return null;
     }
 
-    // ------------------------------------------------------------- categories
-
-    public function categories(): array
-    {
-        return $this->state['categories'];
-    }
-
-    public function categoryCount(string $name): int
-    {
-        return count(array_filter($this->state['transactions'], fn ($t) => $t['category'] === $name));
-    }
-
-    /** Returns an error message, or null when the category was added. */
-    public function addCategory(string $raw): ?string
+    public function addCategory(string $raw, string $type = 'Expense'): ?string
     {
         $name = trim($raw);
 
@@ -216,22 +118,35 @@ class FinanceStore
         if (mb_strlen($name) > 30) {
             return 'Use 30 characters or fewer.';
         }
-        foreach ($this->state['categories'] as $existing) {
-            if (mb_strtolower($existing) === mb_strtolower($name)) {
-                return "\"{$name}\" already exists.";
-            }
+        if (! in_array($type, ['Expense', 'Income'], true)) {
+            return 'Invalid category type.';
+        }
+        if (Category::whereRaw('LOWER(category_name) = ?', [mb_strtolower($name)])->exists()) {
+            return "\"{$name}\" already exists.";
         }
 
-        $this->state['categories'][] = $name;
-        $this->save();
+        Category::create(['category_name' => $name, 'type' => $type]);
 
         return null;
     }
 
-    /** Returns an error message, or null when the category was deleted. */
+    // ------------------------------------------------------------- categories
+
+    public function categories(): array
+    {
+        return Category::orderBy('category_name')->pluck('category_name')->all();
+    }
+
+    public function categoryCount(string $name): int
+    {
+        // Kategori itu global, jadi ini ngitung transaksi dari SEMUA user, bukan cuma lu.
+        return Transaction::whereHas('category', fn($q) => $q->where('category_name', $name))->count();
+    }
+
     public function deleteCategory(string $name): ?string
     {
-        if (! in_array($name, $this->state['categories'], true)) {
+        $category = Category::where('category_name', $name)->first();
+        if (! $category) {
             return 'That category no longer exists.';
         }
 
@@ -239,113 +154,124 @@ class FinanceStore
         if ($count > 0) {
             return "{$name} has {$count} transaction(s). Change or delete them first.";
         }
-        if (count($this->state['categories']) <= 1) {
+        if (Category::count() <= 1) {
             return 'You need at least one category.';
         }
 
-        $this->state['categories'] = array_values(
-            array_filter($this->state['categories'], fn ($c) => $c !== $name)
-        );
-        unset($this->state['goals'][$name]);
-        $this->save();
+        $category->delete();
 
         return null;
     }
 
     // ----------------------------------------------------------- transactions
 
-    /** Newest first. */
     public function transactions(): array
     {
-        $list = $this->state['transactions'];
-        usort($list, fn ($a, $b) => [$b['date'], $b['id']] <=> [$a['date'], $a['id']]);
-
-        return $list;
+        return Transaction::query()
+            ->whereHas('account', fn($q) => $q->where('user_id', Auth::id()))
+            ->with('category')
+            ->orderByDesc('transaction_date')
+            ->orderByDesc('id')
+            ->get()
+            ->map(fn(Transaction $t) => $this->toArray($t))
+            ->all();
     }
 
-    private function clean(array $data): array
+    private function toArray(Transaction $t): array
     {
-        $name = trim((string) ($data['name'] ?? ''));
-
         return [
-            'name' => $name !== '' ? $name : $data['category'],
-            'description' => trim((string) ($data['description'] ?? '')),
-            'category' => $data['category'],
-            'amount' => (int) round((float) $data['amount']),
-            'account_id' => (int) $data['account_id'],
-            'date' => $data['date'],
+            'id' => $t->id,
+            'name' => $t->name ?: $t->category->category_name,
+            'description' => (string) $t->description,
+            'category' => $t->category->category_name,
+            'amount' => (int) round((float) $t->transaction_amount),
+            'account_id' => $t->account_id,
+            'date' => $t->transaction_date->toDateString(),
         ];
     }
 
-    /** Returns a reminder (array) when this transaction crosses a goal reminder point, otherwise null. */
     public function addTransaction(array $data): ?array
     {
-        $transaction = ['id' => $this->nextId()] + $this->clean($data);
-        $reminder = $this->reminderFor($transaction);
+        $account = Account::where('user_id', Auth::id())->findOrFail((int) $data['account_id']);
+        $categoryId = Category::where('category_name', $data['category'])->value('id');
+        $name = trim((string) ($data['name'] ?? ''));
 
-        $this->state['transactions'][] = $transaction;
-        $this->save();
+        $transaction = Transaction::create([
+            'account_id' => $account->id,
+            'category_id' => $categoryId,
+            'name' => $name !== '' ? $name : $data['category'],
+            'description' => trim((string) ($data['description'] ?? '')),
+            'transaction_amount' => (int) round((float) $data['amount']),
+            'transaction_date' => $data['date'],
+        ]);
 
-        return $reminder;
+        return $this->reminderFor($this->toArray($transaction));
     }
 
     public function updateTransaction(int $id, array $data): void
     {
-        $this->state['transactions'] = array_map(
-            fn ($t) => $t['id'] === $id ? ['id' => $id] + $this->clean($data) : $t,
-            $this->state['transactions']
-        );
-        $this->save();
+        $transaction = Transaction::whereHas('account', fn($q) => $q->where('user_id', Auth::id()))->findOrFail($id);
+        $categoryId = Category::where('category_name', $data['category'])->value('id');
+        $name = trim((string) ($data['name'] ?? ''));
+
+        $transaction->update([
+            'account_id' => (int) $data['account_id'],
+            'category_id' => $categoryId,
+            'name' => $name !== '' ? $name : $data['category'],
+            'description' => trim((string) ($data['description'] ?? '')),
+            'transaction_amount' => (int) round((float) $data['amount']),
+            'transaction_date' => $data['date'],
+        ]);
     }
 
-    /** Deleting a transaction automatically gives the money back, because balances are calculated. */
     public function deleteTransaction(int $id): void
     {
-        $this->state['transactions'] = array_values(
-            array_filter($this->state['transactions'], fn ($t) => $t['id'] !== $id)
-        );
-        $this->save();
+        Transaction::whereHas('account', fn($q) => $q->where('user_id', Auth::id()))->findOrFail($id)->delete();
     }
 
     // ------------------------------------------------------------------ goals
+        // ------------------------------------------------------------------ goals
 
     public function categoryGoal(string $category): array
     {
-        $goal = $this->state['goals'][$category] ?? ['amount' => 0, 'reminders' => []];
-        $goal['reminders'] = $goal['reminders'] + self::DEFAULT_REMINDERS;
+        $categoryId = Category::where('category_name', $category)->value('id');
+        $goal = Goal::where('user_id', Auth::id())->where('category_id', $categoryId)->first();
 
-        return $goal;
+        return [
+            'amount' => $goal->amount ?? 0,
+            'reminders' => ($goal->reminders ?? []) + self::DEFAULT_REMINDERS,
+        ];
     }
 
     public function saveCategoryGoal(string $category, int $amount, array $reminders): void
     {
-        $this->state['goals'][$category] = ['amount' => $amount, 'reminders' => $reminders];
-        $this->save();
+        $categoryId = Category::where('category_name', $category)->value('id');
+
+        Goal::updateOrCreate(
+            ['user_id' => Auth::id(), 'category_id' => $categoryId],
+            ['amount' => $amount, 'reminders' => $reminders]
+        );
     }
 
     public function overallGoal(): int
     {
-        return $this->state['overall_goal'];
+        return (int) (Goal::where('user_id', Auth::id())->whereNull('category_id')->value('amount') ?? 0);
     }
 
     public function saveOverallGoal(int $amount): void
     {
-        $this->state['overall_goal'] = $amount;
-        $this->save();
+        Goal::updateOrCreate(
+            ['user_id' => Auth::id(), 'category_id' => null],
+            ['amount' => $amount]
+        );
     }
 
     public static function thresholds(array $reminders): array
     {
         $list = [];
-        if (! empty($reminders['half'])) {
-            $list[] = 50;
-        }
-        if (! empty($reminders['three_quarters'])) {
-            $list[] = 75;
-        }
-        if (! empty($reminders['ninety'])) {
-            $list[] = 90;
-        }
+        if (! empty($reminders['half'])) $list[] = 50;
+        if (! empty($reminders['three_quarters'])) $list[] = 75;
+        if (! empty($reminders['ninety'])) $list[] = 90;
         $custom = (int) ($reminders['custom_percent'] ?? 0);
         if (! empty($reminders['custom_enabled']) && $custom >= 1 && $custom <= 100) {
             $list[] = $custom;
@@ -356,8 +282,10 @@ class FinanceStore
 
     private function reminderFor(array $new): ?array
     {
-        $goal = $this->state['goals'][$new['category']] ?? null;
-        if (! $goal || $goal['amount'] <= 0) {
+        $categoryId = Category::where('category_name', $new['category'])->value('id');
+        $goal = Goal::where('user_id', Auth::id())->where('category_id', $categoryId)->first();
+
+        if (! $goal || $goal->amount <= 0) {
             return null;
         }
 
@@ -366,18 +294,18 @@ class FinanceStore
             return null;
         }
 
-        $before = array_sum(array_column(
-            array_filter(
-                $this->state['transactions'],
-                fn ($t) => $t['category'] === $new['category'] && str_starts_with($t['date'], $month)
-            ),
-            'amount'
-        ));
+        $before = (int) Transaction::whereHas('account', fn ($q) => $q->where('user_id', Auth::id()))
+            ->where('category_id', $categoryId)
+            ->where('id', '!=', $new['id'])
+            ->whereBetween('transaction_date', [now()->startOfMonth(), now()->endOfMonth()])
+            ->sum('transaction_amount');
+
         $after = $before + $new['amount'];
+        $reminders = ($goal->reminders ?? []) + self::DEFAULT_REMINDERS;
 
         $crossed = array_filter(
-            self::thresholds($goal['reminders']),
-            fn ($p) => $before * 100 < $goal['amount'] * $p && $after * 100 >= $goal['amount'] * $p
+            self::thresholds($reminders),
+            fn ($p) => $before * 100 < $goal->amount * $p && $after * 100 >= $goal->amount * $p
         );
 
         if (! $crossed) {
@@ -388,7 +316,7 @@ class FinanceStore
             'category' => $new['category'],
             'percent' => max($crossed),
             'spent' => $after,
-            'goal' => $goal['amount'],
+            'goal' => $goal->amount,
         ];
     }
 
@@ -398,17 +326,14 @@ class FinanceStore
     {
         $month = now()->format('Y-m');
 
-        return array_values(array_filter(
-            $this->transactions(),
-            fn ($t) => str_starts_with($t['date'], $month)
-        ));
+        return array_values(array_filter($this->transactions(), fn($t) => str_starts_with($t['date'], $month)));
     }
 
     public function todayTransactions(): array
     {
         $today = now()->toDateString();
 
-        return array_values(array_filter($this->transactions(), fn ($t) => $t['date'] === $today));
+        return array_values(array_filter($this->transactions(), fn($t) => $t['date'] === $today));
     }
 
     public static function sum(array $list): int
@@ -416,7 +341,6 @@ class FinanceStore
         return array_sum(array_column($list, 'amount'));
     }
 
-    /** Returns [['category' => ..., 'total' => ...], ...] from biggest to smallest. */
     public static function totalsByCategory(array $list): array
     {
         $totals = [];

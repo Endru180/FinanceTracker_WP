@@ -77,6 +77,13 @@
                         @csrf
                         <label for="category-name" class="sr-only">New category name</label>
                         <input id="category-name" name="name" type="text" maxlength="30" placeholder="e.g. Education" required class="{{ $input }} flex-1">
+
+                        <label for="category-type" class="sr-only">Category type</label>
+                        <select id="category-type" name="type" required class="{{ $input }} w-32">
+                            <option value="Expense">Expense</option>
+                            <option value="Income">Income</option>
+                        </select>
+
                         <button type="submit" class="{{ $primary }}">Add</button>
                     </form>
 

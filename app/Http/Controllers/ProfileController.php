@@ -18,7 +18,7 @@ class ProfileController extends Controller
         }
 
         $categories = $store->categories();
-        $categoryRows = array_map(fn ($name) => [
+        $categoryRows = array_map(fn($name) => [
             'name' => $name,
             'count' => $store->categoryCount($name),
             'can_delete' => $store->categoryCount($name) === 0 && count($categories) > 1,
@@ -67,8 +67,11 @@ class ProfileController extends Controller
 
     public function storeCategory(Request $request, FinanceStore $store)
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:30']]);
-        $error = $store->addCategory($data['name']);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:30'],
+            'type' => ['required', Rule::in(['Expense', 'Income'])],
+        ]);
+        $error = $store->addCategory($data['name'], $data['type']);
 
         return $error
             ? back()->withErrors(['error' => $error])
