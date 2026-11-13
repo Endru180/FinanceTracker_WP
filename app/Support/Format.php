@@ -8,7 +8,9 @@ class Format
 {
     public static function rupiah(int|float $amount): string
     {
-        return ($amount < 0 ? '-' : '').'Rp '.number_format(abs($amount), 0, ',', '.');
+        $sign = $amount < 0 ? '-' : '';
+
+        return $sign.'Rp '.number_format(abs($amount), 0, ',', '.');
     }
 
     public static function date(?string $date): string

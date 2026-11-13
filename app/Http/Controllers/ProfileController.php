@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Services\FinanceStore;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -17,18 +18,11 @@ class ProfileController extends Controller
             session()->now('open_auth', true);
         }
 
-        $categories = $store->categories();
-        $categoryRows = array_map(fn ($name) => [
-            'name' => $name,
-            'count' => $store->categoryCount($name),
-            'can_delete' => $store->categoryCount($name) === 0 && count($categories) > 1,
-        ], $categories);
-
         return view('profile', [
             'user' => $user,
             'accounts' => $store->accounts(),
             'accountTypes' => FinanceStore::ACCOUNT_TYPES,
-            'categoryRows' => $categoryRows,
+            'categoryRows' => $this->categoryRows($store),
         ]);
     }
 
@@ -58,31 +52,47 @@ class ProfileController extends Controller
 
     public function destroyAccount(FinanceStore $store, int $id)
     {
-        $error = $store->deleteAccount($id);
-
-        return $error
-            ? back()->withErrors(['error' => $error])
-            : back()->with('status', 'Account deleted.');
+        return $this->respond($store->deleteAccount($id), 'Account deleted.');
     }
 
     public function storeCategory(Request $request, FinanceStore $store)
     {
-        $data = $request->validate(['name' => ['required', 'string', 'max:30']]);
-        $error = $store->addCategory($data['name']);
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:30'],
+            'type' => ['required', Rule::in(['Expense', 'Income'])],
+        ]);
 
-        return $error
-            ? back()->withErrors(['error' => $error])
-            : back()->with('status', 'Category added.');
+        return $this->respond($store->addCategory($data['name'], $data['type']), 'Category added.');
     }
 
     public function destroyCategory(Request $request, FinanceStore $store)
     {
         $data = $request->validate(['name' => ['required', 'string']]);
-        $error = $store->deleteCategory($data['name']);
 
+        return $this->respond($store->deleteCategory($data['name']), 'Category deleted.');
+    }
+
+    private function categoryRows(FinanceStore $store): array
+    {
+        $categories = $store->categories();
+        $hasMultiple = count($categories) > 1;
+
+        return array_map(function (string $name) use ($store, $hasMultiple) {
+            $count = $store->categoryCount($name);
+
+            return [
+                'name' => $name,
+                'count' => $count,
+                'can_delete' => $count === 0 && $hasMultiple,
+            ];
+        }, $categories);
+    }
+
+    private function respond(?string $error, string $successMessage): RedirectResponse
+    {
         return $error
             ? back()->withErrors(['error' => $error])
-            : back()->with('status', 'Category deleted.');
+            : back()->with('status', $successMessage);
     }
 
     private function validatedAccount(Request $request): array
