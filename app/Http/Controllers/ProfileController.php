@@ -18,7 +18,7 @@ class ProfileController extends Controller
         }
 
         $categories = $store->categories();
-        $categoryRows = array_map(fn($name) => [
+        $categoryRows = array_map(fn ($name) => [
             'name' => $name,
             'count' => $store->categoryCount($name),
             'can_delete' => $store->categoryCount($name) === 0 && count($categories) > 1,

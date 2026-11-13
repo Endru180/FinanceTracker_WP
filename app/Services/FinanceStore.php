@@ -4,9 +4,9 @@ namespace App\Services;
 
 use App\Models\Account;
 use App\Models\Category;
+use App\Models\Goal;
 use App\Models\Transaction;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Goal;
 
 class FinanceStore
 {
@@ -53,7 +53,7 @@ class FinanceStore
         return Account::where('user_id', Auth::id())
             ->withCount('transactions')
             ->get()
-            ->map(fn(Account $a) => [
+            ->map(fn (Account $a) => [
                 'id' => $a->id,
                 'name' => $a->account_name,
                 'type' => $a->account_type,
@@ -66,7 +66,7 @@ class FinanceStore
 
     public function totalBalance(): float
     {
-        return Account::where('user_id', Auth::id())->get()->sum(fn(Account $a) => $a->currentBalance());
+        return Account::where('user_id', Auth::id())->get()->sum(fn (Account $a) => $a->currentBalance());
     }
 
     public function addAccount(string $name, string $type, int $balance): void
@@ -140,7 +140,7 @@ class FinanceStore
     public function categoryCount(string $name): int
     {
         // Kategori itu global, jadi ini ngitung transaksi dari SEMUA user, bukan cuma lu.
-        return Transaction::whereHas('category', fn($q) => $q->where('category_name', $name))->count();
+        return Transaction::whereHas('category', fn ($q) => $q->where('category_name', $name))->count();
     }
 
     public function deleteCategory(string $name): ?string
@@ -168,12 +168,12 @@ class FinanceStore
     public function transactions(): array
     {
         return Transaction::query()
-            ->whereHas('account', fn($q) => $q->where('user_id', Auth::id()))
+            ->whereHas('account', fn ($q) => $q->where('user_id', Auth::id()))
             ->with('category')
             ->orderByDesc('transaction_date')
             ->orderByDesc('id')
             ->get()
-            ->map(fn(Transaction $t) => $this->toArray($t))
+            ->map(fn (Transaction $t) => $this->toArray($t))
             ->all();
     }
 
@@ -210,7 +210,7 @@ class FinanceStore
 
     public function updateTransaction(int $id, array $data): void
     {
-        $transaction = Transaction::whereHas('account', fn($q) => $q->where('user_id', Auth::id()))->findOrFail($id);
+        $transaction = Transaction::whereHas('account', fn ($q) => $q->where('user_id', Auth::id()))->findOrFail($id);
         $categoryId = Category::where('category_name', $data['category'])->value('id');
         $name = trim((string) ($data['name'] ?? ''));
 
@@ -226,11 +226,11 @@ class FinanceStore
 
     public function deleteTransaction(int $id): void
     {
-        Transaction::whereHas('account', fn($q) => $q->where('user_id', Auth::id()))->findOrFail($id)->delete();
+        Transaction::whereHas('account', fn ($q) => $q->where('user_id', Auth::id()))->findOrFail($id)->delete();
     }
 
     // ------------------------------------------------------------------ goals
-        // ------------------------------------------------------------------ goals
+    // ------------------------------------------------------------------ goals
 
     public function categoryGoal(string $category): array
     {
@@ -269,9 +269,15 @@ class FinanceStore
     public static function thresholds(array $reminders): array
     {
         $list = [];
-        if (! empty($reminders['half'])) $list[] = 50;
-        if (! empty($reminders['three_quarters'])) $list[] = 75;
-        if (! empty($reminders['ninety'])) $list[] = 90;
+        if (! empty($reminders['half'])) {
+            $list[] = 50;
+        }
+        if (! empty($reminders['three_quarters'])) {
+            $list[] = 75;
+        }
+        if (! empty($reminders['ninety'])) {
+            $list[] = 90;
+        }
         $custom = (int) ($reminders['custom_percent'] ?? 0);
         if (! empty($reminders['custom_enabled']) && $custom >= 1 && $custom <= 100) {
             $list[] = $custom;
@@ -326,14 +332,14 @@ class FinanceStore
     {
         $month = now()->format('Y-m');
 
-        return array_values(array_filter($this->transactions(), fn($t) => str_starts_with($t['date'], $month)));
+        return array_values(array_filter($this->transactions(), fn ($t) => str_starts_with($t['date'], $month)));
     }
 
     public function todayTransactions(): array
     {
         $today = now()->toDateString();
 
-        return array_values(array_filter($this->transactions(), fn($t) => $t['date'] === $today));
+        return array_values(array_filter($this->transactions(), fn ($t) => $t['date'] === $today));
     }
 
     public static function sum(array $list): int

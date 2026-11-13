@@ -8,13 +8,12 @@ class Category extends Model
 {
     protected $fillable = [
         'category_name',
-        'type'
+        'type',
     ];
 
-    
-    # relationship with transaction
-    public function transactions() {
+    // relationship with transaction
+    public function transactions()
+    {
         return $this->hasMany(Transaction::class);
     }
-
 }
