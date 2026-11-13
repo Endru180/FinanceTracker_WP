@@ -8,6 +8,8 @@ use Illuminate\Validation\Rule;
 
 class GoalController extends Controller
 {
+    private const REMINDER_ERROR = 'Enter a custom reminder between 1 and 100.';
+
     public function index(Request $request, FinanceStore $store)
     {
         $month = $store->monthTransactions();
@@ -44,17 +46,33 @@ class GoalController extends Controller
 
     public function saveCategory(Request $request, FinanceStore $store)
     {
-        $data = $request->validate([
+        $data = $this->validatedCategoryGoal($request, $store);
+
+        $store->saveCategoryGoal(
+            $data['category'],
+            (int) ($data['amount'] ?? 0),
+            $this->reminders($request)
+        );
+
+        return back()->with('status', "{$data['category']} goal saved.");
+    }
+
+    private function validatedCategoryGoal(Request $request, FinanceStore $store): array
+    {
+        return $request->validate([
             'category' => ['required', Rule::in($store->categories())],
             'amount' => ['nullable', 'numeric', 'min:0'],
             'reminders.custom_percent' => ['nullable', 'integer', 'between:1,100', 'required_if:reminders.custom_enabled,1'],
         ], [
-            'reminders.custom_percent.required_if' => 'Enter a custom reminder between 1 and 100.',
-            'reminders.custom_percent.between' => 'Enter a custom reminder between 1 and 100.',
-            'reminders.custom_percent.integer' => 'Enter a custom reminder between 1 and 100.',
+            'reminders.custom_percent.required_if' => self::REMINDER_ERROR,
+            'reminders.custom_percent.between' => self::REMINDER_ERROR,
+            'reminders.custom_percent.integer' => self::REMINDER_ERROR,
         ]);
+    }
 
-        $reminders = [
+    private function reminders(Request $request): array
+    {
+        return [
             'half' => $request->boolean('reminders.half'),
             'three_quarters' => $request->boolean('reminders.three_quarters'),
             'ninety' => $request->boolean('reminders.ninety'),
@@ -63,9 +81,5 @@ class GoalController extends Controller
                 ? (int) $request->input('reminders.custom_percent')
                 : null,
         ];
-
-        $store->saveCategoryGoal($data['category'], (int) ($data['amount'] ?? 0), $reminders);
-
-        return back()->with('status', "{$data['category']} goal saved.");
     }
 }

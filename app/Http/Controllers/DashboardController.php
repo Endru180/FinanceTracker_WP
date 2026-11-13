@@ -6,23 +6,15 @@ use App\Services\FinanceStore;
 
 class DashboardController extends Controller
 {
+    private const TOP_LIMIT = 3;
+
     public function index(FinanceStore $store)
     {
         $all = $store->transactions();
         $month = $store->monthTransactions();
         $today = $store->todayTransactions();
 
-        $topCategories = array_slice(FinanceStore::totalsByCategory($month), 0, 3);
-
-        // The 3 latest transactions of each top category (for the popup)
-        $latestByCategory = [];
-        foreach ($topCategories as $c) {
-            $latestByCategory[$c['category']] = array_slice(
-                array_values(array_filter($all, fn ($t) => $t['category'] === $c['category'])),
-                0,
-                3
-            );
-        }
+        $topCategories = $this->topCategories($month);
 
         return view('dashboard', [
             'user' => $store->profile(),
@@ -30,11 +22,32 @@ class DashboardController extends Controller
             'totalBalance' => $store->totalBalance(),
             'transactions' => $all,
             'spentThisMonth' => FinanceStore::sum($month),
-            'latestThree' => array_slice($month, 0, 3),
+            'latestThree' => array_slice($month, 0, self::TOP_LIMIT),
             'topCategories' => $topCategories,
-            'latestByCategory' => $latestByCategory,
+            'latestByCategory' => $this->latestByCategory($all, $topCategories),
             'spentToday' => FinanceStore::sum($today),
-            'topToday' => array_slice(FinanceStore::totalsByCategory($today), 0, 3),
+            'topToday' => $this->topCategories($today),
         ]);
+    }
+
+    private function topCategories(array $transactions): array
+    {
+        return array_slice(FinanceStore::totalsByCategory($transactions), 0, self::TOP_LIMIT);
+    }
+
+    // The 3 latest transactions of each top category (for the popup)
+    private function latestByCategory(array $transactions, array $topCategories): array
+    {
+        $latest = [];
+
+        foreach ($topCategories as $top) {
+            $name = $top['category'];
+
+            $inCategory = array_filter($transactions, fn (array $t) => $t['category'] === $name);
+
+            $latest[$name] = array_slice(array_values($inCategory), 0, self::TOP_LIMIT);
+        }
+
+        return $latest;
     }
 }

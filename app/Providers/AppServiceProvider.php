@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Services\FinanceStore;
+use App\Support\Format;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 
@@ -15,7 +16,15 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        Blade::directive('rupiah', fn ($expression) => "<?php echo e(\\App\\Support\\Format::rupiah($expression)); ?>");
-        Blade::directive('fdate', fn ($expression) => "<?php echo e(\\App\\Support\\Format::date($expression)); ?>");
+        $this->registerFormatDirective('rupiah', 'rupiah');
+        $this->registerFormatDirective('fdate', 'date');
+    }
+
+    private function registerFormatDirective(string $directive, string $method): void
+    {
+        Blade::directive(
+            $directive,
+            fn ($expression) => '<?php echo e(\\'.Format::class."::{$method}({$expression})); ?>"
+        );
     }
 }

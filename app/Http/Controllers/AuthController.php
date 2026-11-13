@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -17,13 +18,11 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        if (! Auth::attempt(['email' => $data['email'], 'password' => $data['password']])) {
+        if (! Auth::attempt($data)) {
             return back()->withErrors(['email' => 'Email atau password salah.'])->onlyInput('email');
         }
 
-        $request->session()->regenerate();
-
-        return redirect()->route('profile');
+        return $this->startSession($request);
     }
 
     public function signup(Request $request)
@@ -41,12 +40,11 @@ class AuthController extends Controller
         ]);
 
         Auth::login($user);
-        $request->session()->regenerate();
 
-        return redirect()->route('profile');
+        return $this->startSession($request);
     }
 
-    public function google(Request $request)
+    public function google()
     {
         return back()->withErrors(['error' => 'Login lewat Google belum tersedia.']);
     }
@@ -58,5 +56,12 @@ class AuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('dashboard');
+    }
+
+    private function startSession(Request $request): RedirectResponse
+    {
+        $request->session()->regenerate();
+
+        return redirect()->route('profile');
     }
 }
