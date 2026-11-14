@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdvisorController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GoalController;
@@ -8,6 +9,10 @@ use App\Http\Controllers\TransactionController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+
+Route::post('/advisor/chat', [AdvisorController::class, 'chat'])
+    ->middleware(['auth', 'throttle:10,1'])
+    ->name('advisor.chat');
 
 Route::controller(TransactionController::class)
     ->prefix('transactions')

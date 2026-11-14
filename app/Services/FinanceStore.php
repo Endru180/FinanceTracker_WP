@@ -199,6 +199,32 @@ class FinanceStore
         );
     }
 
+    /** Aggregate only the signed-in user's data; omit account names and transaction details. */
+    public function advisorSummary(): array
+    {
+        $month = $this->ownTransactions()
+            ->whereBetween('transaction_date', [now()->startOfMonth(), now()->endOfMonth()])
+            ->with('category')->get();
+
+        $expenses = $month->filter(fn (Transaction $transaction) => $transaction->category?->type === 'Expense');
+        $income = $month->filter(fn (Transaction $transaction) => $transaction->category?->type === 'Income');
+
+        return [
+            'month' => now()->format('Y-m'),
+            'currency' => 'IDR',
+            'current_balance' => $this->totalBalance(),
+            'monthly_expenses' => (float) $expenses->sum('transaction_amount'),
+            'monthly_income' => (float) $income->sum('transaction_amount'),
+            'monthly_expense_budget' => $this->overallGoal(),
+            'expenses_by_category' => $expenses->groupBy('category.category_name')
+                ->map(fn ($items, $category) => [
+                    'category' => (string) $category,
+                    'spent' => (float) $items->sum('transaction_amount'),
+                    'budget' => $this->categoryGoal((string) $category)['amount'],
+                ])->values()->all(),
+        ];
+    }
+
     /** Returns a reminder when the new transaction pushes a goal past one of its reminder points. */
     public function addTransaction(array $data): ?array
     {

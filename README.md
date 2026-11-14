@@ -34,5 +34,14 @@
 - AI Finance Advisor using LLM API
 - User Finance Summary Dashboard
 
+## AI advisor setup
+
+The dashboard advisor uses Groq's LLM API. Create an API key at https://console.groq.com/keys and replace the placeholder in your local `.env` file:
+
+```
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=openai/gpt-oss-20b
+```
+
 ## Initial ERD Design
 ![alt text](ERD.png)
